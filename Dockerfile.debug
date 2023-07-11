@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.20-alpine AS build
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Build
+RUN CGO_ENABLED=0 go install -ldflags "-s -w -extldflags '-static'" github.com/go-delve/delve/cmd/dlv@latest
+RUN CGO_ENABLED=0 go build -o ./go-debugger -gcflags "all=-N -l" ./cmd/simple-service/main.go
+
+# FROM scratch
+EXPOSE 2327 4000
+
+# COPY --from=build /go/bin/dlv /dlv
+# COPY --from=build /app /app
+# ENTRYPOINT [ "/dlv" ]
+
+# Run
+CMD [ "/go/bin/dlv", "--listen=:4000", "--headless=true", "--log=true", "--accept-multiclient", "--api-version=2", "exec", "/app/go-debugger" ]
